@@ -112,6 +112,7 @@ def main():
         
         # Strip pruning wrappers to recover standard Keras model
         pruned_model = tfmot.sparsity.keras.strip_pruning(model_for_pruning)
+        pruned_model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
     else:
         print("[NOTICE] tfmot not installed. Applying simulated magnitude weight pruning...")
         pruned_model = base_model
