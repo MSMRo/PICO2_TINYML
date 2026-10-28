@@ -42,6 +42,7 @@ tflite::AllOpsResolver resolver;
 
 void setup() {
   Serial.begin(115200);
+  while(!Serial);
   // Wait up to 4 seconds for Serial connection on Pico 2 USB
   unsigned long start_wait = millis();
   while (!Serial && (millis() - start_wait < 4000)) {
