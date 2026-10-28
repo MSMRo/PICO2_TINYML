@@ -184,15 +184,19 @@ def main():
     onnx_path = ARDUINO_DIR / "student_model.onnx"
     dummy_input = torch.randn(1, 1, SAMPLE_LEN, device=device)
     
-    torch.onnx.export(
-        student,
-        dummy_input,
-        str(onnx_path),
-        export_params=True,
-        opset_version=13,
-        input_names=["input"],
-        output_names=["output"]
-    )
+    try:
+        torch.onnx.export(
+            student,
+            dummy_input,
+            str(onnx_path),
+            export_params=True,
+            opset_version=13,
+            input_names=["input"],
+            output_names=["output"]
+        )
+        print(f"  Exported ONNX model to {onnx_path}")
+    except Exception as e:
+        print(f"  [Notice] ONNX export optional notice: {e}")
 
     # 5. Convert to TFLite INT8 with Keras / Flatbuffer representation
     print("\n[Step 5/6] Building equivalent TFLite model and applying INT8 PTQ...")
