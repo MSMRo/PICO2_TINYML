@@ -37,13 +37,13 @@ SAMPLING_RATE = 100
 ARDUINO_DIR = Path(__file__).resolve().parent.parent / "arduino" / "ppg_inference_pico2"
 
 
-def build_ppg_model(input_shape=(SAMPLE_LEN, 1), num_classes=3):
-    """Clean 1D-CNN for optical Photoplethysmogram waveforms."""
+def build_ppg_model(input_shape=(SAMPLE_LEN, 1, 1), num_classes=3):
+    """Clean 2D-as-1D CNN for optical Photoplethysmogram waveforms with full TFMOT QAT support."""
     inputs = keras.Input(shape=input_shape, name="ppg_input")
-    x = keras.layers.Conv1D(filters=16, kernel_size=7, strides=2, padding="same", activation="relu")(inputs)
-    x = keras.layers.MaxPool1D(pool_size=2)(x)
-    x = keras.layers.Conv1D(filters=32, kernel_size=5, strides=2, padding="same", activation="relu")(x)
-    x = keras.layers.GlobalAveragePooling1D()(x)
+    x = keras.layers.Conv2D(filters=16, kernel_size=(7, 1), strides=(2, 1), padding="same", activation="relu")(inputs)
+    x = keras.layers.MaxPool2D(pool_size=(2, 1))(x)
+    x = keras.layers.Conv2D(filters=32, kernel_size=(5, 1), strides=(2, 1), padding="same", activation="relu")(x)
+    x = keras.layers.GlobalAveragePooling2D()(x)
     x = keras.layers.Dense(24, activation="relu")(x)
     outputs = keras.layers.Dense(num_classes, activation="softmax", name="ppg_classes")(x)
     return keras.Model(inputs=inputs, outputs=outputs, name="tiny_ppg_cnn")
@@ -58,7 +58,7 @@ def main():
     # 1. Dataset Generation
     print("\n[Step 1/5] Generating synthetic PPG pulse dataset with NeuroKit2...")
     X, y = generate_ppg_dataset(num_samples_per_class=400, sample_len=SAMPLE_LEN, sampling_rate=SAMPLING_RATE)
-    X = np.expand_dims(X, axis=-1)  # (N, 150, 1)
+    X = X[:, :, None, None]  # (N, 150, 1, 1)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42, stratify=y)
     print(f"  Training samples: {len(X_train)} | Test samples: {len(X_test)}")
@@ -120,7 +120,7 @@ def main():
     ARDUINO_DIR.mkdir(parents=True, exist_ok=True)
     tflite_to_c_header(tflite_qat_int8, output_path=str(ARDUINO_DIR / "model_data.h"), array_name="g_model")
     save_test_samples_header(
-        samples=X_test[:, :, 0],
+        samples=X_test[:, :, 0, 0],
         labels=y_test,
         output_path=str(ARDUINO_DIR / "test_samples.h"),
         class_names=CLASS_NAMES,
