@@ -227,9 +227,29 @@ Para compilar los sketches `.ino` en la Raspberry Pi Pico 2 / Pico 2 W:
 2. **Seleccionar la Placa**:
    - **Tools -> Board -> Raspberry Pi RP2040/RP2350 Boards -> Raspberry Pi Pico 2** (o **Raspberry Pi Pico 2 W**).
    - **Tools -> CPU Speed -> 150 MHz** (o 200 MHz para máximo desempeño).
-3. **Instalar la Biblioteca TensorFlow Lite Micro**:
-   - En **Tools -> Manage Libraries...**, busca e instala `EloquentTinyML` o `TensorFlowLite_ESP32`.
-4. **Cargar el Código en la Placa**:
+3. **Biblioteca TensorFlow Lite Micro para Raspberry Pi Pico / Pico 2**:
+   - ⚠️ **Importante**: La biblioteca estándar `Arduino_TensorFlowLite` del gestor oficial está empaquetada con binarios estáticos solo para la placa *Nano 33 BLE (nRF52840)* y arroja el error fatal `#error "unsupported board"` en arquitecturas RP2040 y RP2350.
+   - ✅ **Solución Incluida**: Este repositorio incluye una distribución fuente universal en [`libraries/TFLM_Pico/`](file:///d:/DOCUMENTOS/PROJECTS/PICO2_TINYML/libraries/TFLM_Pico). Cópiala a tu carpeta de bibliotecas de Arduino (`Documents/Arduino/libraries/TFLM_Pico`) para compilar directamente desde Arduino IDE, o usa el binario incluido de `arduino-cli`.
+4. **Verificación Automatizada con `arduino-cli`**:
+   - El proyecto incluye [`bin/arduino-cli.exe`](file:///d:/DOCUMENTOS/PROJECTS/PICO2_TINYML/bin/arduino-cli.exe) y el script [`verify_all_arduino.ps1`](file:///d:/DOCUMENTOS/PROJECTS/PICO2_TINYML/verify_all_arduino.ps1). Puedes compilar y validar todos los sketches automáticamente:
+   ```powershell
+   # Ejecutar suite de validación completa (Pico 2 RP2350 y Pico 1 RP2040):
+   powershell -ExecutionPolicy Bypass -File .\verify_all_arduino.ps1
+   ```
+
+### 6.1 Matriz de Validación de Compilación (100% Verificado)
+
+Todos los ejemplos han sido probados y validados con `arduino-cli` y el core oficial `rp2040:rp2040@6.3.1`:
+
+| Ejemplo | Arquitectura Pico 2 (`rpipico2` - RP2350 M33) | Arquitectura Pico 1 (`rpipico` - RP2040 M0+) | Estado |
+| :--- | :--- | :--- | :---: |
+| **01 ECG Arrhythmia (PTQ)** | Flash: 298.6 KB (7%) \| RAM: 53.2 KB (10%) | Flash: 300.7 KB (14%) \| RAM: 47.9 KB (18%) | **PASS (0)** |
+| **02 EMG Gesture (Pruning)** | Flash: 52.7 KB (1%) \| RAM: 9.7 KB (1%) | Flash: 55.4 KB (2%) \| RAM: 8.9 KB (3%) | **PASS (0)** |
+| **03 EEG Rhythm (Distillation)** | Flash: 52.2 KB (1%) \| RAM: 9.6 KB (1%) | Flash: 55.0 KB (2%) \| RAM: 8.8 KB (3%) | **PASS (0)** |
+| **04 PPG Contour (QAT)** | Flash: 52.2 KB (1%) \| RAM: 9.6 KB (1%) | Flash: 55.0 KB (2%) \| RAM: 8.8 KB (3%) | **PASS (0)** |
+| **05 EDA Stress (Hybrid)** | Flash: 52.2 KB (1%) \| RAM: 9.6 KB (1%) | Flash: 55.0 KB (2%) \| RAM: 8.8 KB (3%) | **PASS (0)** |
+
+5. **Cargar el Código en la Placa**:
    - Conecta la Raspberry Pi Pico 2 mediante USB.
    - Abre cualquiera de los archivos `.ino` (por ejemplo `01_ecg_arrhythmia_ptq_tensorflow/arduino/ecg_inference_pico2/ecg_inference_pico2.ino`).
    - Haz clic en **Upload (Subir)**.

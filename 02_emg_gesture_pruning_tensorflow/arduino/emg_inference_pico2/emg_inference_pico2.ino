@@ -11,13 +11,19 @@
 #include "model_data.h"
 #include "test_samples.h"
 
-#if __has_include(<TensorFlowLite.h>)
-  #include <TensorFlowLite.h>
+#if __has_include(<tflm_cortexm.h>)
+  #include <tflm_cortexm.h>
   #include <tensorflow/lite/micro/all_ops_resolver.h>
   #include <tensorflow/lite/micro/micro_interpreter.h>
   #include <tensorflow/lite/schema/schema_generated.h>
   #define HAS_TFLM 1
 #elif __has_include(<tensorflow/lite/micro/micro_interpreter.h>)
+  #include <tensorflow/lite/micro/all_ops_resolver.h>
+  #include <tensorflow/lite/micro/micro_interpreter.h>
+  #include <tensorflow/lite/schema/schema_generated.h>
+  #define HAS_TFLM 1
+#elif __has_include(<TensorFlowLite.h>)
+  #include <TensorFlowLite.h>
   #include <tensorflow/lite/micro/all_ops_resolver.h>
   #include <tensorflow/lite/micro/micro_interpreter.h>
   #include <tensorflow/lite/schema/schema_generated.h>

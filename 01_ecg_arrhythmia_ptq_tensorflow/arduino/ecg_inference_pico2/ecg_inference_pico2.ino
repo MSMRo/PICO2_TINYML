@@ -1,71 +1,53 @@
 /*
  * ==============================================================================
- * TinyML Biosignals on Raspberry Pi Pico 2 (RP2350 - Cortex-M33)
+ * TinyML Biosignals on Raspberry Pi Pico 2 / Pico (RP2350 / RP2040)
  * Example 01: ECG Arrhythmia Inference with Post-Training Quantization (INT8)
  *
- * Board: Raspberry Pi Pico 2 / Pico 2 W (RP2350)
+ * Board: Raspberry Pi Pico 2 (rp2040:rp2040:rpipico2) or Pico (rp2040:rp2040:rpipico)
  * Core:  Raspberry Pi Pico/RP2040/RP2350 by Earle F. Philhower, III
- * Library: TensorFlowLite_ESP32 or EloquentTinyML or Arduino_TensorFlowLite
  * ==============================================================================
  */
 
 #include "model_data.h"
 #include "test_samples.h"
 
-// Check if TensorFlow Lite Micro headers are available in Arduino include path
-#if __has_include(<TensorFlowLite.h>)
-  #include <TensorFlowLite.h>
-  #include <tensorflow/lite/micro/all_ops_resolver.h>
-  #include <tensorflow/lite/micro/micro_interpreter.h>
-  #include <tensorflow/lite/schema/schema_generated.h>
-  #define HAS_TFLM 1
-#elif __has_include(<tensorflow/lite/micro/micro_interpreter.h>)
-  #include <tensorflow/lite/micro/all_ops_resolver.h>
-  #include <tensorflow/lite/micro/micro_interpreter.h>
-  #include <tensorflow/lite/schema/schema_generated.h>
-  #define HAS_TFLM 1
-#else
-  #define HAS_TFLM 0
-#endif
+// Universal TFLM runtime for Cortex-M0+ (Pico 1) and Cortex-M33 (Pico 2)
+#include <tflm_cortexm.h>
+#include <tensorflow/lite/micro/all_ops_resolver.h>
 
-// Tensor Arena Size: RP2350 has 520 KB SRAM, so 32 KB arena is extremely safe and lightweight!
+// Tensor Arena: 32 KB easily fits in RP2040 (264KB) and RP2350 (520KB) SRAM
 constexpr int kTensorArenaSize = 32 * 1024;
 alignas(16) uint8_t tensor_arena[kTensorArenaSize];
 
-#if HAS_TFLM
 const tflite::Model* model = nullptr;
 tflite::MicroInterpreter* interpreter = nullptr;
 TfLiteTensor* input_tensor = nullptr;
 TfLiteTensor* output_tensor = nullptr;
 tflite::AllOpsResolver resolver;
-#endif
 
 void setup() {
   Serial.begin(115200);
-  while(!Serial);
-  // Wait up to 4 seconds for Serial connection on Pico 2 USB
   unsigned long start_wait = millis();
   while (!Serial && (millis() - start_wait < 4000)) {
     delay(10);
   }
 
   Serial.println("\n========================================================");
-  Serial.println("  TinyML Biosignals - Raspberry Pi Pico 2 (RP2350)");
+  Serial.println("  TinyML Biosignals - Raspberry Pi Pico 2 / Pico");
   Serial.println("  Example 01: ECG Arrhythmia Classification (INT8 PTQ)");
   Serial.println("========================================================");
   Serial.printf("CPU Frequency: %lu MHz\n", rp2040.f_cpu() / 1000000);
-  Serial.printf("Model Size in Flash: %u bytes\n", g_model_len);
+  Serial.printf("Model Array Size in Flash: %u bytes\n", g_model_len);
   Serial.printf("Allocated Tensor Arena: %d bytes\n", kTensorArenaSize);
 
-#if HAS_TFLM
-  // 1. Map Model
+  // 1. Map Model FlatBuffer
   model = tflite::GetModel(g_model);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
     Serial.printf("[ERROR] Model schema %ld != runtime %d\n", model->version(), TFLITE_SCHEMA_VERSION);
     return;
   }
 
-  // 2. Build Interpreter
+  // 2. Build MicroInterpreter
   static tflite::MicroInterpreter static_interpreter(
       model, resolver, tensor_arena, kTensorArenaSize);
   interpreter = &static_interpreter;
@@ -81,7 +63,7 @@ void setup() {
   output_tensor = interpreter->output(0);
 
   Serial.println("\n[Model Architecture Information]");
-  Serial.printf("Input Shape: [%d, %d, %d], Type: %d\n",
+  Serial.printf("Input Shape: [%d, %d, %d], Type: %d (INT8)\n",
                 input_tensor->dims->data[0],
                 input_tensor->dims->data[1],
                 input_tensor->dims->data[2],
@@ -89,7 +71,7 @@ void setup() {
   Serial.printf("Input Quantization: Scale = %.6f, Zero-Point = %ld\n",
                 input_tensor->params.scale,
                 input_tensor->params.zero_point);
-  Serial.printf("Output Shape: [%d, %d], Type: %d\n",
+  Serial.printf("Output Shape: [%d, %d], Type: %d (INT8)\n",
                 output_tensor->dims->data[0],
                 output_tensor->dims->data[1],
                 output_tensor->type);
@@ -101,12 +83,6 @@ void setup() {
                 kTensorArenaSize,
                 (float)interpreter->arena_used_bytes() * 100.0f / kTensorArenaSize);
   Serial.println("========================================================\n");
-#else
-  Serial.println("\n[NOTICE] TensorFlowLite library not detected in compiler search path.");
-  Serial.println("Install 'EloquentTinyML' or 'TensorFlowLite_ESP32' via Arduino Library Manager,");
-  Serial.println("or copy the TFLM headers into the sketch folder to run live hardware inference.");
-  Serial.println("Running in Standby / Telemetry Test Mode...\n");
-#endif
 }
 
 void run_single_inference(int sample_index) {
@@ -117,7 +93,6 @@ void run_single_inference(int sample_index) {
                 CLASS_NAMES[TEST_LABELS[sample_index]],
                 TEST_LABELS[sample_index]);
 
-#if HAS_TFLM
   // 1. Quantize Input: float32 -> int8: q = round(val / scale) + zero_point
   float in_scale = input_tensor->params.scale;
   int32_t in_zp = input_tensor->params.zero_point;
@@ -173,10 +148,9 @@ void run_single_inference(int sample_index) {
                 CLASS_NAMES[predicted_class],
                 predicted_class,
                 max_score * 100.0f);
-  Serial.printf("Inference Latency: %lu us (%.2f ms) | Throughput: ~%.1f inferences/sec\n",
+  Serial.printf("Inference Latency: %lu us (%.2f ms) | Throughput: ~%.1f inf/sec\n",
                 t_latency, t_latency / 1000.0f, 1000000.0f / (float)t_latency);
 
-  // Softmax Probabilities Breakdown
   Serial.print("Class Probabilities: [ ");
   for (int c = 0; c < NUM_CLASSES; c++) {
     Serial.printf("%s: %.1f%% ", CLASS_NAMES[c], probabilities[c] * 100.0f);
@@ -188,14 +162,10 @@ void run_single_inference(int sample_index) {
   } else {
     Serial.println(" Result: MISMATCH\n");
   }
-#else
-  Serial.printf("Sample data loaded: %d points. True class: %s.\n\n",
-                SAMPLE_LENGTH, CLASS_NAMES[TEST_LABELS[sample_index]]);
-#endif
 }
 
 void loop() {
-  Serial.println(">>> Starting In-System Verification Loop on Pico 2 <<<\n");
+  Serial.println(">>> Starting In-System Verification Loop on Pico <<<\n");
   for (int i = 0; i < NUM_TEST_SAMPLES; i++) {
     run_single_inference(i);
     delay(1000);

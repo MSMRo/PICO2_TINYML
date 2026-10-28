@@ -50,21 +50,52 @@ Utilizamos el core oficial mantenido por la comunidad de Earle F. Philhower, III
 
 ## 3. Instalación de la Biblioteca TensorFlow Lite Micro
 
-Para compilar modelos `.tflite` embebidos en arreglos C (`model_data.h`), necesitamos el motor de inferencia de TensorFlow Lite Micro. Existen dos opciones recomendadas:
+### ⚠️ El problema con `Arduino_TensorFlowLite` estándar
+Si intentas instalar la biblioteca tradicional `Arduino_TensorFlowLite` desde el gestor de bibliotecas de Arduino, te toparás con errores fatales de compilación en Raspberry Pi Pico y Pico 2:
+- `#error "unsupported board"`
+- `hal/nrf_i2s.h: No such file or directory`
+- `architecture mismatch`
 
-### Opción A (Recomendada): Biblioteca `EloquentTinyML`
-1. En Arduino IDE, ve a **Tools -> Manage Libraries... (Gestor de Bibliotecas)**.
-2. Busca `EloquentTinyML` de Simone Salerno.
-3. Haz clic en **Install**.
-4. Esta biblioteca encapsula el runtime de TFLM con una interfaz limpia en C++ (`Eloquent::TinyML::TfLite<...>`).
+**¿Por qué ocurre esto?**
+Esa biblioteca oficial fue empaquetada hace años exclusivamente para la placa **Arduino Nano 33 BLE Sense** (chip Nordic nRF52840, Cortex-M4F). Contiene binarios estáticos precompilados (`.a`) que carecen de código para Cortex-M0+ (RP2040) y Cortex-M33 (RP2350), además de incluir forzosamente periféricos del SDK de Nordic Semiconductor (`peripherals/peripherals.h`).
 
-### Opción B: Biblioteca `TensorFlowLite_ESP32` / `Arduino_TensorFlowLite`
-1. En el Gestor de Bibliotecas, busca `TensorFlowLite_ESP32` o `Arduino_TensorFlowLite`.
-2. Estas bibliotecas incluyen los encabezados estándar de Google:
-   - `<tensorflow/lite/micro/all_ops_resolver.h>`
-   - `<tensorflow/lite/micro/micro_interpreter.h>`
-   - `<tensorflow/lite/schema/schema_generated.h>`
-3. Los sketches incluidos en este curso detectan automáticamente si estos encabezados están presentes mediante `#if __has_include(...)`.
+---
+
+### Solución Probada y Definitiva: `libraries/TFLM_Pico`
+
+Este repositorio incluye una distribución universal y optimizada de **TensorFlow Lite Micro** directamente en la carpeta:
+```text
+PICO2_TINYML/
+└── libraries/
+    └── TFLM_Pico/      <- Runtime TFLM completo compilable desde código fuente
+```
+
+Esta versión resuelve todas las incompatibilidades:
+1. **Compilación 100% desde código fuente**: Compatible con cualquier microcontrolador ARM Cortex-M (Cortex-M0+, Cortex-M33, Cortex-M4F, Cortex-M7).
+2. **Compatibilidad total con GCC 14**: Corrige advertencias de FlatBuffers y tipos enteros en `<cstdint>` y `<cstddef>`.
+3. **Buffer circular universal**: Implementa buffers ligeros independientes de la API de Arduino AVR/SAMD.
+
+#### Opción 1: Uso directo con Arduino IDE
+1. Copia la carpeta `libraries/TFLM_Pico` a tu directorio de bibliotecas de Arduino:
+   - **Windows**: `C:\Users\<TuUsuario>\Documents\Arduino\libraries\TFLM_Pico`
+   - **Linux**: `~/Arduino/libraries/TFLM_Pico`
+   - **macOS**: `~/Documents/Arduino/libraries/TFLM_Pico`
+2. Reinicia Arduino IDE.
+3. ¡Listo! Cualquier sketch que incluya `#include <tflm_cortexm.h>` o `<tensorflow/lite/micro/...>` compilará sin ningún error.
+
+#### Opción 2: Compilación y Verificación con `arduino-cli`
+El proyecto incluye el binario portátil de `arduino-cli` en `bin/arduino-cli.exe` y un script automatizado para verificar todos los ejemplos:
+
+```powershell
+# Compilar un sketch individual para Pico 2 (RP2350):
+.\bin\arduino-cli.exe compile --fqbn rp2040:rp2040:rpipico2 --libraries libraries 01_ecg_arrhythmia_ptq_tensorflow/arduino/ecg_inference_pico2
+
+# Compilar para Pico 1 (RP2040):
+.\bin\arduino-cli.exe compile --fqbn rp2040:rp2040:rpipico --libraries libraries 01_ecg_arrhythmia_ptq_tensorflow/arduino/ecg_inference_pico2
+
+# Ejecutar la suite de verificación completa (todos los ejemplos en ambas tarjetas):
+powershell -ExecutionPolicy Bypass -File .\verify_all_arduino.ps1
+```
 
 ---
 
