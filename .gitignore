@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Build artifacts for Raspberry Pi Pico SDK
+build_all/
+*/pico2/build/
+*.elf
+*.bin
+*.hex
+*.dis
+*.map
+
+# Editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

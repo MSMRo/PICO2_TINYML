@@ -1,292 +1,299 @@
-# TinyML con Bioseñales en Raspberry Pi Pico 2 / Pico 2 W (RP2350)
-### Curso Práctico Completo: Deep Learning, Optimización en el Borde y Despliegue en Arduino IDE
+# TinyML con Bioseñales y Deep Learning en Raspberry Pi Pico 2 (RP2350)
+### Arquitectura Nativa C++ con Raspberry Pi Pico SDK (`pico-sdk`) y TensorFlow Lite Micro (TFLM + CMSIS-NN)
 
-Bienvenido al repositorio del curso **TinyML con Bioseñales en Raspberry Pi Pico 2 / Pico 2 W**. Este proyecto está diseñado para enseñarte el flujo de trabajo profesional de extremo a extremo (*End-to-End*) para diseñar, entrenar, optimizar y desplegar redes neuronales profundas (Deep Learning) aplicadas a señales biomédicas en sistemas embebidos de ultra-bajo consumo.
+Bienvenido al repositorio profesional **TinyML en Raspberry Pi Pico 2 / Pico 2 W**. Este proyecto implementa un flujo de trabajo integral (*End-to-End*) para diseñar, entrenar, optimizar y desplegar redes neuronales profundas (Deep Learning) aplicadas tanto a modelos canónicos de aprendizaje automático como al procesamiento de bioseñales fisiológicas complejas (ECG, EMG, PPG, EEG, EDA) sobre microcontroladores de ultra-bajo consumo.
+
+A diferencia de implementaciones convencionales basadas en Arduino IDE, **este repositorio utiliza exclusivamente el SDK nativo de C++ de Raspberry Pi (`pico-sdk` v2.3+)**, aprovechando al máximo la microarquitectura **RP2350 (ARM Cortex-M33)**, aceleración SIMD con instrucciones DSP CMSIS-NN, temporizadores de hardware de 64 bits para benchmarks de latencia y gestión estricta de memoria en compilación estática.
 
 ---
 
 ## Tabla de Contenidos
-1. [Visión General del Curso](#1-visión-general-del-curso)
-2. [Hardware: Raspberry Pi Pico 2 y Pico 2 W (RP2350)](#2-hardware-raspberry-pi-pico-2-y-pico-2-w-rp2350)
+1. [Hardware: Raspberry Pi Pico 2 y Pico 2 W (RP2350)](#1-hardware-raspberry-pi-pico-2-y-pico-2-w-rp2350)
+2. [Hoja de Ruta Progresiva de Proyectos (01 al 09)](#2-hoja-de-ruta-progresiva-de-proyectos-01-al-09)
 3. [Técnicas de Optimización TinyML Abordadas](#3-técnicas-de-optimización-tinyml-abordadas)
-4. [Estructura del Proyecto y Contenido de las Carpetas](#4-estructura-del-proyecto-y-contenido-de-las-carpetas)
-5. [Guía Completa de Uso de `uv`](#5-guía-completa-de-uso-de-uv)
-6. [Configuración de Arduino IDE para Raspberry Pi Pico 2](#6-configuración-de-arduino-ide-para-raspberry-pi-pico-2)
-7. [Guía Rápida de Ejecución de los Ejemplos](#7-guía-rápida-de-ejecución-de-los-ejemplos)
+4. [Estructura del Repositorio](#4-estructura-del-repositorio)
+5. [Guía del Entorno de Python con `uv`](#5-guía-del-entorno-de-python-con-uv)
+6. [Toolchain de C++ y Raspberry Pi Pico SDK](#6-toolchain-de-c-y-raspberry-pi-pico-sdk)
+7. [Instrucciones de Compilación](#7-instrucciones-de-compilación)
+8. [Flasheo de Binarios (.uf2) y Monitor Serie](#8-flasheo-de-binarios-uf2-y-monitor-serie)
 
 ---
 
-## 1. Visión General del Curso
+## 1. Hardware: Raspberry Pi Pico 2 y Pico 2 W (RP2350)
 
-El procesamiento de bioseñales (ECG, EMG, EEG, PPG, EDA) tradicionalmente requería equipos de escritorio o servidores en la nube debido a la complejidad de las operaciones matemáticas de filtrado y redes neuronales. Con **TinyML** y microcontroladores modernos como el **RP2350** de la Raspberry Pi Pico 2, ahora es posible ejecutar modelos de Deep Learning directamente en el cuerpo del paciente (dispositivos *Wearables* e implantes) con:
-- **Latencia determinista**: Decisiones críticas en menos de 3 milisegundos sin depender de conexión a internet.
-- **Privacidad total**: Los datos biomédicos sensibles nunca salen del microcontrolador.
-- **Consumo ultra-bajo**: Baterías que duran semanas o meses.
-- **Cero costo de infraestructura en la nube**: Inferencia local autónoma.
+La **Raspberry Pi Pico 2** está equipada con el microcontrolador **RP2350**, un avance revolucionario para TinyML respecto al RP2040:
 
-Para garantizar datos fisiológicos realistas sin requerir sensores físicos desde el primer día, el curso utiliza la biblioteca científica **`neurokit2`** para generar bioseñales sintéticas basadas en modelos dinámicos cardiovasculares y neurofisiológicos.
-
----
-
-## 2. Hardware: Raspberry Pi Pico 2 y Pico 2 W (RP2350)
-
-La **Raspberry Pi Pico 2** está equipada con el procesador **RP2350**, un avance monumental frente a los microcontroladores de generaciones anteriores:
-
-| Parámetro | Pico 1 (RP2040) | Pico 2 / Pico 2 W (RP2350) | Impacto en TinyML |
+| Parámetro | Pico 1 (RP2040) | Pico 2 / Pico 2 W (RP2350) | Impacto en Inferencia TinyML |
 | :--- | :--- | :--- | :--- |
-| **Núcleos de CPU** | 2x ARM Cortex-M0+ | **2x ARM Cortex-M33** (o 2x Hazard3 RISC-V) | Conjunto de instrucciones ARMv8-M moderno |
-| **FPU (Punto Flotante)** | No (emulado por software) | **FPU de precisión simple por hardware** | Acelera capas float32 x15 - x20 |
-| **Instrucciones DSP** | No disponible | **SMLAD, SMUAD (SIMD de 32/16/8 bits)** | Convoluciones y capas densas INT8 a máxima velocidad |
-| **Frecuencia de Reloj** | 133 MHz | **150 MHz** (overclock estable a 200-250 MHz) | Más de 500 inferencias por segundo |
-| **Memoria SRAM (RAM)** | 264 KB | **520 KB en chip** | Gran capacidad para *Tensor Arenas* de 32 a 64 KB |
-| **Memoria Flash** | 2 MB | **4 MB QSPI Flash** | Almacena decenas de modelos `.h` simultáneos |
-| **Inalámbrico (Pico 2 W)** | Solo USB | **Wi-Fi 4 (802.11n) + Bluetooth 5.2 (CYW43439)** | Transmisión BLE/Wi-Fi de resultados o alarmas |
+| **Núcleos de CPU** | 2x ARM Cortex-M0+ | **2x ARM Cortex-M33 con TrustZone** | Ejecución de instrucciones ARMv8-M de ciclo único |
+| **FPU (Punto Flotante)** | No (emulado por software) | **FPU de precisión simple por hardware** | Acelera cuantización y operaciones float32 x15 - x20 |
+| **Instrucciones DSP** | No disponible | **SMLAD, SMUAD, SIMD de 32/16/8 bits** | Kernels CMSIS-NN acelerados para convoluciones y Dense INT8 |
+| **Frecuencia de Reloj** | 133 MHz | **150 MHz por defecto** (overclocking a 200–250 MHz) | Cientos de inferencias por segundo con sub-milisegundo de latencia |
+| **Memoria SRAM** | 264 KB | **520 KB en chip (SRAM contigua)** | Permite *Tensor Arenas* de 32 KB a 128 KB sin fragmentación |
+| **Memoria Flash** | 2 MB | **4 MB QSPI Flash** | Almacena múltiples modelos cuantizados y datos de calibración |
+| **Conectividad (Pico 2 W)** | Solo USB | **Wi-Fi 4 (802.11n) + BLE 5.2 (CYW43439)** | Telemetría biomédica y alarmas en tiempo real |
+
+---
+
+## 2. Hoja de Ruta Progresiva de Proyectos (01 al 09)
+
+El repositorio está estructurado pedagógicamente en una secuencia que va desde los fundamentos absolutos de TensorFlow Lite Micro hasta modelos recurrentes temporales y clasificadores biomédicos multicapa:
+
+```
+[01 Fundamentos 3-Capas] ──> [02 Deep MLP Clasificación] ──> [03 Regresión Seno] ──> [04 LSTM Temporal]
+                                                                                               │
+                                                                                               ▼
+[09 EDA Estrés 1D-CNN] <── [08 EEG PyTorch KD] <── [07 PPG QAT] <── [06 EMG Pruning] <── [05 ECG PTQ]
+```
+
+### Proyectos Fundamentales
+1. **[01_basic_3layer_dense](file:///e:/PROJECTS/PICO2_TINYML/01_basic_3layer_dense/pico2)**: Red Neuronal Densa de 3 capas.
+   - *Objetivo*: Comprender la anatomía básica de TFLM: inicialización de `tflite::MicroInterpreter`, resolución de operadores con `tflite::MicroMutableOpResolver`, asignación del *Tensor Arena* con alineación de 16 bytes y mapeo de tensores INT8.
+2. **[02_deep_mlp_classification](file:///e:/PROJECTS/PICO2_TINYML/02_deep_mlp_classification/pico2)**: Perceptrón Multicapa Profundo (*Deep MLP*).
+   - *Objetivo*: Clasificación multiclase no lineal con 4 capas densas intermedias, función de activación Softmax y selección de clase argmax con reporte de probabilidades des-cuantizadas.
+3. **[03_sine_regression](file:///e:/PROJECTS/PICO2_TINYML/03_sine_regression/pico2)**: Regresión No Lineal Continua ($\sin(x)$).
+   - *Objetivo*: Modelado continuo de funciones analíticas con TFLM INT8. Cuantización de la entrada $x \in [0, 2\pi]$, inferencia del modelo y de-cuantización analítica de la salida flotante con cálculo de error absoluto residual.
+4. **[04_temporal_lstm_recurrent](file:///e:/PROJECTS/PICO2_TINYML/04_temporal_lstm_recurrent/pico2)**: Red Neuronal Recurrente con Celdas LSTM Desenrolladas (*Unrolled LSTM*).
+   - *Objetivo*: Modelado de series temporales dinámicas y señales periódicas sintéticas. Implementación compatible con microcontroladores mediante desenrollado de grafo (`unroll=True`) sin dependencias de `TensorListReserve`.
+
+### Clasificadores de Bioseñales Reales / Sintéticas
+5. **[05_ecg_arrhythmia_ptq_tensorflow](file:///e:/PROJECTS/PICO2_TINYML/05_ecg_arrhythmia_ptq_tensorflow/pico2)**: Clasificador de Arritmias Cardíacas ECG (1D-CNN) con Cuantización Post-Entrenamiento (PTQ).
+   - *Bioseñal*: Ventanas de 187 muestras generadas con `neurokit2` (Ritmo Sinusal, Taquicardia, Latido Ectópico).
+   - *Optimización*: Calibración INT8 con *Representative Dataset*.
+6. **[06_emg_gesture_pruning_tensorflow](file:///e:/PROJECTS/PICO2_TINYML/06_emg_gesture_pruning_tensorflow/pico2)**: Reconocimiento de Gestos Musculares sEMG con Poda de Pesos (*Weight Pruning*).
+   - *Bioseñal*: Ráfagas de electromiografía a 1000 Hz (Reposo, Contracción Ligera, Contracción Fuerte).
+   - *Optimización*: Poda de magnitud al 65% de dispersión (*sparsity*) con TensorFlow Model Optimization (`tfmot`).
+7. **[07_ppg_heart_rate_qat_tensorflow](file:///e:/PROJECTS/PICO2_TINYML/07_ppg_heart_rate_qat_tensorflow/pico2)**: Análisis Morfológico y Calidad de Pulso Óptico PPG con QAT.
+   - *Bioseñal*: Pulso fotopletismográfico arterial a 100 Hz (Pulso Limpio, Pulso Ectópico, Artefacto de Movimiento).
+   - *Optimización*: *Quantization-Aware Training* (QAT) con estimador directo (*Straight-Through Estimator*).
+8. **[08_eeg_distillation_pytorch](file:///e:/PROJECTS/PICO2_TINYML/08_eeg_distillation_pytorch/pico2)**: Clasificador de Ritmos Cerebrales EEG con Destilación de Conocimiento (PyTorch).
+   - *Bioseñal*: Ondas cerebrales sintéticas en bandas Theta (4-8 Hz), Alpha (8-12 Hz) y Beta (14-28 Hz).
+   - *Optimización*: Transferencia de conocimiento Profesor-Alumno (*Teacher-Student*) mediante divergencia KL con temperatura $T=3.0$, exportado vía ONNX -> TFLite INT8.
+9. **[09_eda_stress_hybrid_pipeline](file:///e:/PROJECTS/PICO2_TINYML/09_eda_stress_hybrid_pipeline/pico2)**: Detección de Estrés Autónomo con Respuesta Galvánica de la Piel (EDA / GSR).
+   - *Bioseñal*: Conductancia de la piel descomponiendo componentes tónica (SCL) y fásica (SCR).
+   - *Arquitectura*: 1D-CNN compacta cuantizada a INT8 para dispositivos portátiles *wearables*.
 
 ---
 
 ## 3. Técnicas de Optimización TinyML Abordadas
 
-### 3.1 Cuantización Post-Entrenamiento (PTQ - Post-Training Quantization)
-Convierte pesos y mapas de activación de precisión flotante IEEE 754 de 32 bits (`float32`) a enteros de 8 bits con signo (`int8`, rango $[-128, 127]$):
+### 3.1 Cuantización Post-Entrenamiento (PTQ INT8)
+Convierte tensores float32 a enteros de 8 bits con signo (`int8`, rango $[-128, 127]$):
 $$q = \text{clip}\left(\text{round}\left(\frac{x}{S}\right) + Z, -128, 127\right)$$
-- **Escala ($S$)**: Factor de escala flotante que define la resolución del entero.
-- **Zero-Point ($Z$)**: Entero que representa el cero real del valor flotante.
-- **Representative Dataset**: Conjunto de bioseñales de calibración utilizado para registrar el rango dinámico de las activaciones internas sin reentrenar la red.
+- **Escala ($S$)**: Factor de resolución flotante.
+- **Punto Cero ($Z$)**: Entero que representa el origen flotante 0.0.
+- **Representative Dataset**: Conjunto de bioseñales de calibración utilizado por `TFLiteConverter` para fijar los rangos dinámicos de cada capa sin requerir reentrenamiento.
 
 ### 3.2 Poda de Pesos (Weight Pruning / Sparsity)
-Elimina conexiones neuronales prescindibles forzando a cero los pesos cuya magnitud $|w_i| < \epsilon$.
-- Mediante un programa polinomial de decaimiento (*Polynomial Decay*), la red se poda progresivamente durante el entrenamiento hasta alcanzar entre 50% y 75% de dispersión (*sparsity*).
-- Aunque el tamaño del archivo `.tflite` plano no cambia inicialmente, las matrices dispersas se comprimen hasta un **70% más con compresión Gzip/Zlib**, ideal para actualizaciones por aire (*OTA Firmware Updates*) y almacenamiento flash.
+Fuerza a cero las conexiones sinápticas con magnitudes $|w_i| < \epsilon$ mediante decaimiento polinomial progresivo durante el entrenamiento:
+- Logra un **65%–75% de dispersión (*sparsity*)**, permitiendo ratios de compresión superiores al 60% en algoritmos como Gzip/Zlib y optimizando las actualizaciones de firmware por aire (OTA).
 
 ### 3.3 Destilación de Conocimiento (Knowledge Distillation)
-Transfiere la capacidad predictiva de una red neuronal grande y profunda (**Teacher / Profesor**, p. ej. 300,000 parámetros) a una red ultra-compacta (**Student / Alumno**, < 3,000 parámetros).
-- Utiliza la divergencia de Kullback-Leibler sobre distribuciones de probabilidad suavizadas con un hiperparámetro de **Temperatura ($T$)**:
-  $$\mathcal{L}_{\text{KD}} = \alpha T^2 D_{\text{KL}}\left(\sigma\left(\frac{z_s}{T}\right) \parallel \sigma\left(\frac{z_t}{T}\right)\right) + (1 - \alpha) \mathcal{L}_{\text{CE}}(z_s, y)$$
-- El Alumno aprende no solo la etiqueta correcta, sino las similitudes ocultas entre clases (*Dark Knowledge*).
+Entrena una red microscópica (*Student*, < 3,000 parámetros) supervisada por una red profunda (*Teacher*, ~300,000 parámetros) minimizando la divergencia de Kullback-Leibler sobre distribuciones de probabilidad suavizadas con un factor de temperatura $T$:
+$$\mathcal{L}_{\text{KD}} = \alpha T^2 D_{\text{KL}}\left(\sigma\left(\frac{z_s}{T}\right) \parallel \sigma\left(\frac{z_t}{T}\right)\right) + (1 - \alpha) \mathcal{L}_{\text{CE}}(z_s, y)$$
 
-### 3.4 Entrenamiento Consciente de Cuantización (QAT - Quantization-Aware Training)
-Inserta operadores de cuantización simulada (*fake quantization*) durante el pase hacia adelante (*forward pass*) y utiliza el estimador directo (*Straight-Through Estimator, STE*) en la retropropagación (*backpropagation*).
-- Modela el error de redondeo de 8 bits en cada iteración del optimizador Adam.
-- Elimina casi por completo la pérdida de exactitud observada en señales complejas como pulsos PPG.
+### 3.4 Entrenamiento Consciente de Cuantización (QAT)
+Inserta operadores de cuantización simulada (*fake quantization*) durante el pase hacia adelante (*forward pass*) para modelar el ruido de truncamiento de 8 bits directamente en la retropropagación con el optimizador Adam. Previene la pérdida de exactitud en contornos biomédicos sutiles.
 
 ---
 
-## 4. Estructura del Proyecto y Contenido de las Carpetas
-
-Cada ejemplo está estrictamente organizado con su propia carpeta, conteniendo un subdirectorio `python/` (con scripts y notebooks de Jupyter) y un subdirectorio `arduino/` (con el código `.ino` y los encabezados `.h` listos para compilar en la Pico 2):
+## 4. Estructura del Repositorio
 
 ```text
 PICO2_TINYML/
-├── pyproject.toml                     <- Configuración del entorno Python gestionado con uv
-├── README.md                          <- Manual del curso, tutorial de uv y guía de Arduino
-├── utils/                             <- Herramientas compartidas
-│   ├── signal_generator.py            <- Generadores de bioseñales con NeuroKit2 (ECG, EMG, EEG, PPG, EDA)
-│   ├── exporter.py                    <- Exportador de modelos TFLite a arreglos C (model_data.h) y test_samples.h
-│   ├── tflite_eval.py                 <- Evaluador de precisión, latencia y tamaño FP32 vs INT8
-│   └── pytorch_to_tflite.py           <- Puente de conversión PyTorch -> ONNX -> TFLite
+├── CMakeLists.txt                         <- CMake maestro para compilar la suite completa
+├── pico_sdk_import.cmake                  <- Vinculación y detección automática de Pico SDK
+├── build_all_pico2.ps1                    <- Script PowerShell para compilar los 9 binarios .uf2
+├── pyproject.toml                         <- Configuración del entorno Python gestionado con uv
+├── README.md                              <- Documentación general del repositorio
 │
-├── 00_environment_setup/              <- Verificación de entorno y guías
-│   ├── verify_environment.py          <- Comprueba paquetes Python y especificaciones RP2350
-│   ├── export_tflite_to_header.py     <- Utilidad de línea de comandos para exportar .tflite a .h
-│   └── arduino_setup_guide.md         <- Guía detallada de instalación de placas y librerías en Arduino IDE
+├── libraries/
+│   ├── pico_tflm/                         <- Librería estática TFLM nativa para Pico SDK (C++)
+│   │   ├── CMakeLists.txt                 <- Compila TFLM con optimizaciones para ARM Cortex-M33
+│   │   ├── pico_tflm.h                    <- Encabezado maestro de TensorFlow Lite Micro
+│   │   ├── utility_pico.cpp               <- Implementación de debug log para UART/USB stdio
+│   │   └── kernel_util_pico.cpp           <- Adaptadores de runtime
+│   └── TFLM_Pico/src/                     <- Código fuente C++ de TFLM y CMSIS-NN
 │
-├── 01_ecg_arrhythmia_ptq_tensorflow/  <- Ejemplo 01: ECG + PTQ (Post-Training Quantization)
-│   ├── python/
-│   │   ├── 01_ecg_arrhythmia_ptq.ipynb <- Notebook interactivo paso a paso con gráficas
-│   │   └── train_ptq.py               <- Script de entrenamiento, cuantización y exportación automática
-│   └── arduino/
-│       └── ecg_inference_pico2/
-│           ├── ecg_inference_pico2.ino <- Sketch de Arduino para Raspberry Pi Pico 2
-│           ├── model_data.h           <- Arreglo C del modelo INT8 (alignas 16 para Cortex-M33)
-│           └── test_samples.h         <- Arreglos de latidos de prueba con etiquetas verdaderas
+├── utils/                                 <- Módulos Python reutilizables
+│   ├── signal_generator.py                <- Generador de bioseñales sintéticas con NeuroKit2
+│   ├── exporter.py                        <- Exportador de modelos TFLite a model_data.h y test_samples.h
+│   ├── tflite_eval.py                     <- Evaluador de precisión y métricas FP32 vs INT8
+│   └── pytorch_to_tflite.py               <- Puente de conversión PyTorch -> ONNX -> TFLite INT8
 │
-├── 02_emg_gesture_pruning_tensorflow/ <- Ejemplo 02: sEMG + Poda de Pesos (Weight Pruning / TFMOT)
-│   ├── python/
-│   │   ├── 02_emg_pruning.ipynb       <- Notebook con histogramas de dispersión de pesos y compresión
-│   │   └── train_pruning.py           <- Script de poda polinomial a 65% de dispersión + INT8
-│   └── arduino/
-│       └── emg_inference_pico2/
-│           ├── emg_inference_pico2.ino <- Sketch de Arduino con control de LED según contracción
-│           ├── model_data.h
-│           └── test_samples.h
+├── 00_environment_setup/                  <- Guías y verificación de herramientas
+│   ├── pico2_sdk_setup_guide.md           <- Guía paso a paso del SDK de C++, CMake y Ninja
+│   ├── verify_environment.py              <- Verificador del entorno de Python
+│   └── export_tflite_to_header.py         <- Utilidad CLI para generar arreglos C alignas(16)
 │
-├── 03_eeg_distillation_pytorch/       <- Ejemplo 03: EEG + Destilación de Conocimiento (PyTorch)
-│   ├── python/
-│   │   ├── 03_eeg_distillation_pytorch.ipynb <- Notebook con arquitectura Teacher-Student
-│   │   └── train_distillation.py      <- Script de entrenamiento con pérdida de destilación y exportación
-│   └── arduino/
-│       └── eeg_inference_pico2/
-│           ├── eeg_inference_pico2.ino <- Sketch de Arduino para inferencia de estados cerebrales
-│           ├── model_data.h
-│           └── test_samples.h
+├── 01_basic_3layer_dense/                 <- PROYECTO 01: Fundamentos TFLM 3-Capas
+│   ├── python/train_basic_dense.py        <- Entrenamiento en Keras y exportación a INT8
+│   └── pico2/                             <- Proyecto C++ Pico SDK (CMakeLists.txt, main.cpp, .h)
 │
-├── 04_ppg_heart_rate_qat_tensorflow/  <- Ejemplo 04: PPG + QAT (Quantization-Aware Training)
-│   ├── python/
-│   │   ├── 04_ppg_qat.ipynb           <- Notebook de simulación de cuantización y cálculo de STE
-│   │   └── train_qat.py               <- Script de entrenamiento QAT con TFMOT
-│   └── arduino/
-│       └── ppg_inference_pico2/
-│           ├── ppg_inference_pico2.ino <- Sketch de Arduino para análisis de ondas de pulso
-│           ├── model_data.h
-│           └── test_samples.h
+├── 02_deep_mlp_classification/            <- PROYECTO 02: Deep MLP Clasificación Multiclase
+│   ├── python/train_deep_mlp.py           <- Arquitectura profunda con capas intermedias
+│   └── pico2/                             <- Inferencia C++ y cálculo argmax de clases
 │
-└── 05_eda_stress_hybrid_pipeline/     <- Ejemplo 05: EDA / GSR + Detección de Estrés Simpático
-    ├── python/
-    │   ├── 05_eda_stress.ipynb        <- Notebook de análisis tónico/fásico y clasificación
-    │   └── train_eda.py               <- Script de entrenamiento de 1D-CNN para conductancia de la piel
-    └── arduino/
-        └── eda_inference_pico2/
-            ├── eda_inference_pico2.ino <- Sketch de Arduino con alarma de estrés psicofisiológico
-            ├── model_data.h
-            └── test_samples.h
+├── 03_sine_regression/                    <- PROYECTO 03: Regresión Continua Seno
+│   ├── python/train_regression.py         <- Generación de dataset y ajuste de función continua
+│   └── pico2/                             <- De-cuantización y benchmark de error absoluto
+│
+├── 04_temporal_lstm_recurrent/            <- PROYECTO 04: LSTM Temporal para Series de Tiempo
+│   ├── python/train_lstm.py               <- LSTM con grafo desenrollado (unroll=True)
+│   └── pico2/                             <- Inferencia secuencial en microcontrolador
+│
+├── 05_ecg_arrhythmia_ptq_tensorflow/      <- PROYECTO 05: ECG + Cuantización PTQ (1D-CNN)
+│   ├── python/train_ptq.py                <- Calibración con Representative Dataset
+│   └── pico2/                             <- Clasificador de latidos y taquicardia
+│
+├── 06_emg_gesture_pruning_tensorflow/     <- PROYECTO 06: EMG + Poda de Pesos (65% Sparsity)
+│   ├── python/train_pruning.py            <- Poda polinomial con TensorFlow Model Optimization
+│   └── pico2/                             <- Detección de contracción muscular en tiempo real
+│
+├── 07_ppg_heart_rate_qat_tensorflow/      <- PROYECTO 07: PPG + QAT (Quantization-Aware Training)
+│   ├── python/train_qat.py                <- Simulación de cuantización en forward pass
+│   └── pico2/                             <- Clasificación de calidad de pulso arterial
+│
+├── 08_eeg_distillation_pytorch/           <- PROYECTO 08: EEG + Destilación de Conocimiento (PyTorch)
+│   ├── python/train_distillation.py       <- Entrenamiento Teacher-Student y exportación ONNX
+│   └── pico2/                             <- Clasificador de bandas cerebrales (Theta, Alpha, Beta)
+│
+└── 09_eda_stress_hybrid_pipeline/         <- PROYECTO 09: EDA / GSR + Detección de Estrés
+    ├── python/train_eda.py                <- 1D-CNN para conductancia galvánica de la piel
+    └── pico2/                             <- Inferencia de estrés psicofisiológico
 ```
 
 ---
 
-## 5. Guía Completa de Uso de `uv`
+## 5. Guía del Entorno de Python con `uv`
 
-Este proyecto utiliza **`uv`**, el gestor de paquetes y entornos de Python más rápido del mundo (escrito en Rust por Astral, creadores de Ruff). `uv` reemplaza a `pip`, `pip-tools`, `virtualenv`, `poetry` y `conda`, ofreciendo instalaciones entre 10 y 100 veces más rápidas con resolución determinista y gestión automática de versiones de Python.
+Este proyecto gestiona sus dependencias de Python con **`uv`**, el gestor ultra-rápido desarrollado en Rust por Astral.
 
-### 5.1 ¿Cómo instalar `uv`?
-
-- **En Windows (PowerShell)**:
+### 5.1 Instalación de `uv`
+- **Windows (PowerShell)**:
   ```powershell
   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
   ```
-- **En Linux o macOS**:
+- **Linux / macOS**:
   ```bash
   curl -LsSf https://astral.sh/uv/install.sh | sh
   ```
 
-Para verificar que esté instalado correctamente:
-```bash
-uv --version
-```
-
-### 5.2 Creación del Entorno Virtual y Sincronización Automática
-Para instalar automáticamente todas las dependencias del proyecto (TensorFlow, PyTorch, NeuroKit2, JupyterLab, ONNX, etc.) en un entorno virtual aislado `.venv`:
-```bash
+### 5.2 Sincronización del Entorno Virtual
+Para crear y poblar el entorno virtual `.venv` con TensorFlow, PyTorch, NeuroKit2, ONNX y utilidades:
+```powershell
 uv sync
 ```
-`uv` descargará e instalará todas las ruedas (*wheels*) en pocos segundos.
 
-### 5.3 ¿Cómo ejecutar scripts de Python con `uv`?
-**No necesitas activar manualmente el entorno virtual**. `uv run` detecta automáticamente el `.venv` y lo ejecuta en el contexto correcto:
-
-```bash
-# 1. Verificar el entorno y dependencias:
+### 5.3 Entrenamiento y Re-generación de Modelos
+Puedes ejecutar los scripts de Python sin activar manualmente el entorno:
+```powershell
+# Verificar estado del entorno:
 uv run 00_environment_setup/verify_environment.py
 
-# 2. Entrenar y exportar el Ejemplo 01 (ECG):
-uv run 01_ecg_arrhythmia_ptq_tensorflow/python/train_ptq.py
-
-# 3. Entrenar y exportar el Ejemplo 02 (EMG Pruning):
-uv run 02_emg_gesture_pruning_tensorflow/python/train_pruning.py
-
-# 4. Entrenar y exportar el Ejemplo 03 (EEG Distillation con PyTorch):
-uv run 03_eeg_distillation_pytorch/python/train_distillation.py
-
-# 5. Entrenar y exportar el Ejemplo 04 (PPG QAT):
-uv run 04_ppg_heart_rate_qat_tensorflow/python/train_qat.py
-
-# 6. Entrenar y exportar el Ejemplo 05 (EDA Stress):
-uv run 05_eda_stress_hybrid_pipeline/python/train_eda.py
+# Entrenar cualquiera de los 9 proyectos:
+uv run 01_basic_3layer_dense/python/train_basic_dense.py
+uv run 02_deep_mlp_classification/python/train_deep_mlp.py
+uv run 03_sine_regression/python/train_regression.py
+uv run 04_temporal_lstm_recurrent/python/train_lstm.py
+uv run 05_ecg_arrhythmia_ptq_tensorflow/python/train_ptq.py
+uv run 06_emg_gesture_pruning_tensorflow/python/train_pruning.py
+uv run 07_ppg_heart_rate_qat_tensorflow/python/train_qat.py
+uv run 08_eeg_distillation_pytorch/python/train_distillation.py
+uv run 09_eda_stress_hybrid_pipeline/python/train_eda.py
 ```
-
-### 5.4 ¿Cómo abrir los Notebooks de Jupyter con `uv`?
-Para lanzar **JupyterLab** o el servidor de **Jupyter Notebook**:
-```bash
-uv run jupyter lab
-```
-o bien:
-```bash
-uv run jupyter notebook
-```
-Esto abrirá tu navegador web predeterminado. Podrás explorar y ejecutar celda por celda cada uno de los notebooks interactivos `.ipynb` de cada carpeta.
-
-### 5.5 ¿Cómo añadir nuevos paquetes al proyecto?
-Si deseas instalar una librería adicional (por ejemplo `seaborn`):
-```bash
-uv add seaborn
-```
-`uv` actualizará automáticamente el archivo `pyproject.toml` y bloqueará las versiones exactas.
 
 ---
 
-## 6. Configuración de Arduino IDE para Raspberry Pi Pico 2
+## 6. Toolchain de C++ y Raspberry Pi Pico SDK
 
-Para compilar los sketches `.ino` en la Raspberry Pi Pico 2 / Pico 2 W:
+Para compilar el código de C++ nativo se requiere:
+1. **Raspberry Pi Pico SDK v2.3+**: Ubicado típicamente en `~/.pico-sdk/sdk/2.3.1` o mediante la variable de entorno `PICO_SDK_PATH`.
+2. **Toolchain GNU ARM Embedded**: `arm-none-eabi-gcc`, `arm-none-eabi-g++` (versión 12 o superior con soporte Cortex-M33).
+3. **Generador de Construcción**: `CMake` (v3.13+) y `Ninja`.
 
-1. **Instalar el Core RP2350 de Earle Philhower**:
-   - En Arduino IDE: **File -> Preferences**.
-   - En *Additional Boards Manager URLs*, agrega:
-     ```text
-     https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
-     ```
-   - Abre **Tools -> Board -> Boards Manager**, busca `Raspberry Pi Pico/RP2040/RP2350` e instálalo.
-2. **Seleccionar la Placa**:
-   - **Tools -> Board -> Raspberry Pi RP2040/RP2350 Boards -> Raspberry Pi Pico 2** (o **Raspberry Pi Pico 2 W**).
-   - **Tools -> CPU Speed -> 150 MHz** (o 200 MHz para máximo desempeño).
-3. **Biblioteca TensorFlow Lite Micro para Raspberry Pi Pico / Pico 2**:
-   - ⚠️ **Importante**: La biblioteca estándar `Arduino_TensorFlowLite` del gestor oficial está empaquetada con binarios estáticos solo para la placa *Nano 33 BLE (nRF52840)* y arroja el error fatal `#error "unsupported board"` en arquitecturas RP2040 y RP2350.
-   - ✅ **Solución Incluida**: Este repositorio incluye una distribución fuente universal en [`libraries/TFLM_Pico/`](file:///d:/DOCUMENTOS/PROJECTS/PICO2_TINYML/libraries/TFLM_Pico). Cópiala a tu carpeta de bibliotecas de Arduino (`Documents/Arduino/libraries/TFLM_Pico`) para compilar directamente desde Arduino IDE, o usa el binario incluido de `arduino-cli`.
-4. **Verificación Automatizada con `arduino-cli`**:
-   - El proyecto incluye [`bin/arduino-cli.exe`](file:///d:/DOCUMENTOS/PROJECTS/PICO2_TINYML/bin/arduino-cli.exe) y el script [`verify_all_arduino.ps1`](file:///d:/DOCUMENTOS/PROJECTS/PICO2_TINYML/verify_all_arduino.ps1). Puedes compilar y validar todos los sketches automáticamente:
-   ```powershell
-   # Ejecutar suite de validación completa (Pico 2 RP2350 y Pico 1 RP2040):
-   powershell -ExecutionPolicy Bypass -File .\verify_all_arduino.ps1
-   ```
-
-### 6.1 Matriz de Validación de Compilación (100% Verificado)
-
-Todos los ejemplos han sido probados y validados con `arduino-cli` y el core oficial `rp2040:rp2040@6.3.1`:
-
-| Ejemplo | Arquitectura Pico 2 (`rpipico2` - RP2350 M33) | Arquitectura Pico 1 (`rpipico` - RP2040 M0+) | Estado |
-| :--- | :--- | :--- | :---: |
-| **01 ECG Arrhythmia (PTQ)** | Flash: 298.6 KB (7%) \| RAM: 53.2 KB (10%) | Flash: 300.7 KB (14%) \| RAM: 47.9 KB (18%) | **PASS (0)** |
-| **02 EMG Gesture (Pruning)** | Flash: 52.7 KB (1%) \| RAM: 9.7 KB (1%) | Flash: 55.4 KB (2%) \| RAM: 8.9 KB (3%) | **PASS (0)** |
-| **03 EEG Rhythm (Distillation)** | Flash: 52.2 KB (1%) \| RAM: 9.6 KB (1%) | Flash: 55.0 KB (2%) \| RAM: 8.8 KB (3%) | **PASS (0)** |
-| **04 PPG Contour (QAT)** | Flash: 52.2 KB (1%) \| RAM: 9.6 KB (1%) | Flash: 55.0 KB (2%) \| RAM: 8.8 KB (3%) | **PASS (0)** |
-| **05 EDA Stress (Hybrid)** | Flash: 52.2 KB (1%) \| RAM: 9.6 KB (1%) | Flash: 55.0 KB (2%) \| RAM: 8.8 KB (3%) | **PASS (0)** |
-
-5. **Cargar el Código en la Placa**:
-   - Conecta la Raspberry Pi Pico 2 mediante USB.
-   - Abre cualquiera de los archivos `.ino` (por ejemplo `01_ecg_arrhythmia_ptq_tensorflow/arduino/ecg_inference_pico2/ecg_inference_pico2.ino`).
-   - Haz clic en **Upload (Subir)**.
-   - Abre el **Serial Monitor** configurado a **115200 baudios**.
+> Si instalaste el paquete oficial de Raspberry Pi para Windows (*Raspberry Pi Pico SDK Installer*), las herramientas se encuentran instaladas en `C:\Users\<Usuario>\.pico-sdk\`.
 
 ---
 
-## 7. Guía Rápida de Ejecución de los Ejemplos
+## 7. Instrucciones de Compilación
 
-### Ejemplo 01: Detección de Arritmias ECG con Cuantización INT8 (PTQ)
-- **Bioseñal**: Ventanas de 187 muestras de electrocardiograma a 250 Hz generadas con `neurokit2.ecg_simulate`.
-- **Clases**: Ritmo Sinusal Normal (0), Taquicardia (1), Bradicardia / Latido Ectópico (2).
-- **Modelo**: 1D-CNN con convoluciones separables en profundidad.
-- **Optimización**: Cuantización post-entrenamiento completa a INT8 con calibración mediante *Representative Dataset*.
-- **Despliegue**: El sketch en Arduino lee las señales empaquetadas en `test_samples.h`, aplica la cuantización de entrada $q = \text{round}(x / S) + Z$, ejecuta la inferencia con TFLM y calcula la latencia en microsegundos.
+### Opción A: Compilación Unificada de los 9 Subproyectos (Recomendado)
+El proyecto incluye un script en PowerShell que detecta automáticamente el toolchain y compila todos los proyectos en un solo paso:
 
-### Ejemplo 02: Reconocimiento de Gestos/Contracción sEMG con Poda de Pesos (Pruning)
-- **Bioseñal**: Electromiografía superficial a 1000 Hz simulando ráfagas de activación muscular.
-- **Clases**: Reposo (0), Contracción Ligera (1), Contracción Fuerte (2).
-- **Optimización**: Poda basada en magnitud con `tfmot` alcanzando 65% de dispersión (*weights = 0.0*), seguida de conversión a INT8.
-- **Despliegue**: La Pico 2 detecta la fuerza muscular y enciende el LED integrado en tiempo real según el nivel de contracción.
+```powershell
+.\build_all_pico2.ps1
+```
 
-### Ejemplo 03: Clasificación de Ritmos Cerebrales EEG con Destilación de Conocimiento (PyTorch)
-- **Bioseñal**: Ritmos electroencefalográficos (Theta: 4-8 Hz, Alpha: 8-12 Hz, Beta: 14-28 Hz).
-- **Framework**: PyTorch.
-- **Optimización**: Se entrena un modelo *Teacher* profundo (~300,000 parámetros) y se transfiere su conocimiento a un modelo *Student* microscópico (< 3,000 parámetros) mediante pérdida KL-Divergence con Temperatura $T=3.0$. Se exporta vía ONNX -> TFLite INT8 -> `model_data.h`.
+O utilizando CMake directamente:
+```powershell
+# 1. Configurar directorio de construcción global
+cmake -B build_all -S . -G "Ninja" -DPICO_BOARD=pico2
 
-### Ejemplo 04: Calidad y Detección de Ondas de Pulso PPG con QAT
-- **Bioseñal**: Señales de fotopletismografía óptica a 100 Hz (Pulso Limpio, Pulso Ectópico, Artefacto de Movimiento Severo).
-- **Optimización**: *Quantization-Aware Training* (QAT) con `tfmot`, emulando el redondeo de 8 bits durante el entrenamiento para garantizar cero degradación de exactitud en los picos sistólicos y diastólicos.
+# 2. Compilar la suite completa
+cmake --build build_all
+```
 
-### Ejemplo 05: Detección de Estrés Autónomo con Actividad Electrodérmica (EDA/GSR)
-- **Bioseñal**: Respuesta Galvánica de la Piel a 50 Hz simulando respuestas de conductancia fásica (SCR) y nivel tónico (SCL).
-- **Clases**: Calma / Reposo (0) vs Alta Activación / Estrés Simpático (1).
-- **Despliegue**: Inferencia en menos de 1.5 milisegundos en la RP2350, ideal para dispositivos portátiles de monitoreo de estrés continuo.
+Al terminar, se habrán generado los 9 binarios `.uf2` listos para flashear:
+- `build_all/01_basic_dense_build/basic_3layer_dense.uf2`
+- `build_all/02_deep_mlp_build/deep_mlp_classification.uf2`
+- `build_all/03_regression_build/sine_regression.uf2`
+- `build_all/04_lstm_build/temporal_lstm_recurrent.uf2`
+- `build_all/05_ecg_build/ecg_arrhythmia_ptq.uf2`
+- `build_all/06_emg_build/emg_gesture_pruning.uf2`
+- `build_all/07_ppg_build/ppg_heart_rate_qat.uf2`
+- `build_all/08_eeg_build/eeg_distillation_pytorch.uf2`
+- `build_all/09_eda_build/eda_stress_hybrid_pipeline.uf2`
+
+---
+
+### Opción B: Compilación Individual de un Subproyecto Específico
+Cada carpeta `pico2/` es completamente autónoma. Para compilar únicamente un ejemplo:
+
+```powershell
+cd 01_basic_3layer_dense/pico2
+cmake -B build -S . -G "Ninja" -DPICO_BOARD=pico2
+cmake --build build
+```
+El binario resultante se creará en `01_basic_3layer_dense/pico2/build/basic_3layer_dense.uf2`.
+
+---
+
+## 8. Flasheo de Binarios (.uf2) y Monitor Serie
+
+### 8.1 Carga del Firmware (.uf2) en la Raspberry Pi Pico 2
+1. Mantén presionado el botón blanco **BOOTSEL** en la placa Raspberry Pi Pico 2.
+2. Conecta el cable Micro-USB / USB-C a tu PC.
+3. Suelta el botón **BOOTSEL**. La placa aparecerá como una unidad de disco extraíble llamada `RP2350`.
+4. Arrastra y suelta el archivo `.uf2` deseado dentro de la unidad `RP2350`.
+5. La Pico 2 se reiniciará automáticamente y comenzará a ejecutar la red neuronal de inmediato.
+
+### 8.2 Lectura del Monitor Serie
+Todos los ejemplos tienen habilitada la salida estándar mediante el puerto USB nativo (`stdio_usb_init()`).
+
+Abre cualquier terminal serial (PuTTY, Tera Term, VS Code Serial Monitor o PowerShell) configurado a:
+- **Baudrate**: 115200 bps
+- **Data bits**: 8, Stop bits: 1, Paridad: Ninguna
+
+#### Ejemplo de Salida en Terminal (Proyecto 05 - ECG Arrhythmia):
+```text
+==================================================
+  Raspberry Pi Pico 2 (RP2350) - ECG Arrhythmia PTQ
+  TensorFlow Lite Micro INT8 Inference
+==================================================
+[INFO] Inicializando TensorFlow Lite Micro...
+[INFO] Modelo cargado exitosamente. Version flatbuffer: 3
+[INFO] Tensor Arena configurado: 49152 bytes (Alineado a 16 bytes).
+[INFO] Input tensor: type=INT8, dims=[1, 187, 1], scale=0.00392157, zero_point=0
+[INFO] Output tensor: type=INT8, dims=[1, 3], scale=0.00390625, zero_point=-128
+
+--- Muestra de Test 1/3 (Etiqueta esperada: 0 - Ritmo Normal) ---
+[BENCHMARK] Inferencia completada en 814 microsegundos (0.814 ms)
+[PREDICCION] Clase: 0 (Ritmo Normal) | Confianza: 98.4%
+[ESTADO] Clasificacion CORRECTA!
+```
 
 ---
 
 ## Licencia
-Este curso y su código están bajo la licencia **MIT**, permitiendo su uso académico, personal e industrial.
+Este proyecto y todo su código fuente están licenciados bajo la licencia **MIT**, permitiendo su uso y adaptación académica, personal y comercial libremente.
